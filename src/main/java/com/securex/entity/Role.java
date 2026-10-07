@@ -1,0 +1,30 @@
+package com.securex.entity;
+
+import java.util.UUID;
+
+import jakarta.persistence.Column;
+import jakarta.persistence.Entity;
+import jakarta.persistence.Id;
+import jakarta.persistence.Table;
+import lombok.AllArgsConstructor;
+import lombok.Builder;
+import lombok.Getter;
+import lombok.NoArgsConstructor;
+import lombok.Setter;
+
+@Setter
+@Getter
+@AllArgsConstructor
+@NoArgsConstructor
+@Builder
+@Entity
+@Table(name = "roles")
+public class Role {
+
+    @Id
+    @Column(name = "role_id")
+    private UUID id;
+
+    @Column(unique = true, nullable = false)
+    private String name;
+}
