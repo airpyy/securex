@@ -26,120 +26,198 @@ import tools.jackson.databind.ObjectMapper;
 @Configuration
 public class SecurityConfig {
 
-	private final JwtsAuthenticationFilter authenticationFilter;
-	private final Oauth2SuccessHandler oauth2SuccessHandler;
+    private final JwtsAuthenticationFilter authenticationFilter;
+    private final Oauth2SuccessHandler oauth2SuccessHandler;
 
-	public SecurityConfig(JwtsAuthenticationFilter authenticationFilter, Oauth2SuccessHandler oauth2SuccessHandler) {
+    public SecurityConfig(
+            JwtsAuthenticationFilter authenticationFilter,
+            Oauth2SuccessHandler oauth2SuccessHandler) {
 
-		this.authenticationFilter = authenticationFilter;
-		this.oauth2SuccessHandler = oauth2SuccessHandler;
-	}
+        this.authenticationFilter = authenticationFilter;
+        this.oauth2SuccessHandler = oauth2SuccessHandler;
+    }
 
-	@Bean
-	public SecurityFilterChain securityFilterChain(HttpSecurity httpSecurity) throws Exception {
+    @Bean
+    public SecurityFilterChain securityFilterChain(
+            HttpSecurity httpSecurity) throws Exception {
 
-		httpSecurity
+        httpSecurity
 
-				// Disable CSRF
-				.csrf(csrf -> csrf.disable())
+                // =========================
+                // Disable CSRF
+                // =========================
+                .csrf(csrf -> csrf.disable())
 
-				// CORS
-				.cors(cors -> cors.configurationSource(corsConfigurationSource()))
+                // =========================
+                // CORS
+                // =========================
+                .cors(cors ->
+                        cors.configurationSource(corsConfigurationSource()))
 
-				// Stateless session
-				.sessionManagement(sm -> sm.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
+                // =========================
+                // Stateless Session
+                // =========================
+                .sessionManagement(sm ->
+                        sm.sessionCreationPolicy(
+                                SessionCreationPolicy.STATELESS))
 
-				// Authorization
-				.authorizeHttpRequests(authorize -> authorize
+                // =========================
+                // Authorization
+                // =========================
+                .authorizeHttpRequests(authorize -> authorize
 
-						// Allow CORS preflight requests
-						.requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
+                        // CORS Preflight
+                        .requestMatchers(
+                                HttpMethod.OPTIONS,
+                                "/**"
+                        ).permitAll()
 
-						// Public authentication APIs
-						.requestMatchers("/api/v1/auth/**").permitAll()
-						
-						.requestMatchers("/error").permitAll()
-						.requestMatchers(HttpMethod.GET).hasRole(AppConstent.GUEST_ROLE)
-						.requestMatchers("/api/v1/users/**").hasRole(AppConstent.ADMIN_ROLE)
+                        // Authentication APIs
+                        .requestMatchers(
+                                "/api/v1/auth/**"
+                        ).permitAll()
 
-						// Everything else requires authentication
-						.anyRequest().authenticated())
+                        // Error endpoint
+                        .requestMatchers(
+                                "/error"
+                        ).permitAll()
 
-				// OAuth2 Login
-				.oauth2Login(oauth2 -> oauth2.successHandler(oauth2SuccessHandler).failureHandler(null))
+                        // GET APIs
+                        .requestMatchers(
+                                HttpMethod.GET
+                        ).hasRole(AppConstent.GUEST_ROLE)
 
-				// Disable logout
-				.logout(logout -> logout.disable())
+                        // Admin APIs
+                        .requestMatchers(
+                                "/api/v1/users/**"
+                        ).hasRole(AppConstent.ADMIN_ROLE)
 
-				// Exception handling
-				.exceptionHandling(ex -> ex.authenticationEntryPoint((request, response, ae) -> {
+                        // Everything else
+                        .anyRequest().authenticated())
 
-					ae.printStackTrace();
+                // =========================
+                // OAuth2 Login
+                // =========================
+                .oauth2Login(oauth2 ->
+                        oauth2
+                                .successHandler(oauth2SuccessHandler)
+                                .failureHandler(null))
 
-					response.setStatus(401);
-					response.setContentType("application/json");
+                // =========================
+                // Disable Default Logout
+                // =========================
+                .logout(logout ->
+                        logout.disable())
 
-					String msg = "Unauthorized Access! " + ae.getMessage();
+                // =========================
+                // Exception Handling
+                // =========================
+                .exceptionHandling(ex ->
+                        ex.authenticationEntryPoint(
+                                (request, response, ae) -> {
 
-					Map<String, String> errorMap = Map.of("msg", msg, "status", "401", "statusCode", "401");
+                                    ae.printStackTrace();
 
-					var objectMapper = new ObjectMapper();
+                                    response.setStatus(401);
+                                    response.setContentType(
+                                            "application/json");
 
-					response.getWriter().write(objectMapper.writeValueAsString(errorMap));
-				}))
+                                    String msg =
+                                            "Unauthorized Access! "
+                                            + ae.getMessage();
 
-				// JWT Filter
-				.addFilterBefore(authenticationFilter, UsernamePasswordAuthenticationFilter.class);
+                                    Map<String, String> errorMap =
+                                            Map.of(
+                                                    "msg",
+                                                    msg,
+                                                    "status",
+                                                    "401",
+                                                    "statusCode",
+                                                    "401"
+                                            );
 
-		return httpSecurity.build();
-	}
+                                    var objectMapper =
+                                            new ObjectMapper();
 
-	// =========================
-	// CORS CONFIGURATION
-	// =========================
+                                    response.getWriter().write(
+                                            objectMapper.writeValueAsString(
+                                                    errorMap));
+                                }))
 
-	@Bean
-	public CorsConfigurationSource corsConfigurationSource() {
+                // =========================
+                // JWT Authentication Filter
+                // =========================
+                .addFilterBefore(
+                        authenticationFilter,
+                        UsernamePasswordAuthenticationFilter.class);
 
-		CorsConfiguration config = new CorsConfiguration();
+        return httpSecurity.build();
+    }
 
-		// React frontend
-		config.setAllowedOrigins(List.of("http://localhost:5173"));
+    // =========================
+    // CORS CONFIGURATION
+    // =========================
 
-		// Allowed HTTP methods
-		config.setAllowedMethods(List.of("GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"));
+    @Bean
+    public CorsConfigurationSource corsConfigurationSource() {
 
-		// Allow all headers
-		config.setAllowedHeaders(List.of("*"));
+        CorsConfiguration config =
+                new CorsConfiguration();
 
-		// Allow cookies / credentials
-		config.setAllowCredentials(true);
+        // Local React frontend + Production Vercel frontend
+        config.setAllowedOrigins(List.of(
+                "http://localhost:5173",
+                "https://securex-frontend-phi.vercel.app"
+        ));
 
-		// Register CORS configuration
-		UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
+        // Allowed HTTP methods
+        config.setAllowedMethods(List.of(
+                "GET",
+                "POST",
+                "PUT",
+                "PATCH",
+                "DELETE",
+                "OPTIONS"
+        ));
 
-		source.registerCorsConfiguration("/**", config);
+        // Allow all request headers
+        config.setAllowedHeaders(List.of("*"));
 
-		return source;
-	}
+        // Required because frontend uses credentials/cookies
+        config.setAllowCredentials(true);
 
-	// =========================
-	// PASSWORD ENCODER
-	// =========================
+        // Register CORS for all endpoints
+        UrlBasedCorsConfigurationSource source =
+                new UrlBasedCorsConfigurationSource();
 
-	@Bean
-	public PasswordEncoder encoder() {
-		return new BCryptPasswordEncoder();
-	}
+        source.registerCorsConfiguration(
+                "/**",
+                config
+        );
 
-	// =========================
-	// AUTHENTICATION MANAGER
-	// =========================
+        return source;
+    }
 
-	@Bean
-	public AuthenticationManager authenticationManager(AuthenticationConfiguration authenticationConfiguration)
-			throws Exception {
+    // =========================
+    // PASSWORD ENCODER
+    // =========================
 
-		return authenticationConfiguration.getAuthenticationManager();
-	}
+    @Bean
+    public PasswordEncoder encoder() {
+
+        return new BCryptPasswordEncoder();
+    }
+
+    // =========================
+    // AUTHENTICATION MANAGER
+    // =========================
+
+    @Bean
+    public AuthenticationManager authenticationManager(
+            AuthenticationConfiguration authenticationConfiguration)
+            throws Exception {
+
+        return authenticationConfiguration
+                .getAuthenticationManager();
+    }
 }
